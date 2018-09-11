@@ -14,12 +14,14 @@ class Context2vec(nn.Module):
                  bidirectional,
                  dropout,
                  pad_index,
+                 device,
                  inference):
 
         super(Context2vec, self).__init__()
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.n_layers = n_layers
+        self.device = device
         self.rnn_output_size = hidden_size
         self.weighting = False
 
@@ -42,7 +44,8 @@ class Context2vec(nn.Module):
                                           counter,
                                           ignore_index=pad_index,
                                           n_negatives=10,
-                                          power=0.75)
+                                          power=0.75,
+                                          device=device)
 
         if self.weighting:
             self.weights = nn.Parameter(torch.zeros(2, hidden_size))

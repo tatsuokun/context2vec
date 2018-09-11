@@ -1,6 +1,7 @@
 import os
 import torch
 from torch import optim
+import numpy as np
 from src.util.args import parse_args
 from src.util.batch import Dataset
 from src.util.io import write_embedding
@@ -29,14 +30,17 @@ def main():
         sentences = [line.strip().lower().split() for line in f]
 
     dataset = Dataset(sentences, batch_size, device)
+    counter = np.array([dataset.vocab.freqs[word] if word in dataset.vocab.freqs else 0
+                        for word in dataset.vocab.itos])
     model = Context2vec(vocab_size=len(dataset.vocab),
-                        counter=dataset.vocab.freqs.values(),
+                        counter=counter,
                         word_embed_size=word_embed_size,
                         hidden_size=hidden_size,
                         n_layers=1,
                         bidirectional=True,
                         dropout=0.0,
                         pad_index=dataset.pad_index,
+                        device=device,
                         inference=False)
     if use_cuda:
         model.cuda()
