@@ -9,8 +9,6 @@ from src.nets import Context2vec
 
 
 def main():
-    corpus_filename = 'dataset/sample.txt'
-
     args = parse_args()
     gpu_id = args.gpu_id
     batch_size = args.batch_size
@@ -24,9 +22,9 @@ def main():
     else:
         device = torch.device('cpu')
 
-    if not os.path.isfile(corpus_filename):
+    if not os.path.isfile(args.input_file):
         raise FileNotFoundError
-    with open(corpus_filename) as f:
+    with open(args.input_file) as f:
         sentences = [line.strip().lower().split() for line in f]
 
     dataset = Dataset(sentences, batch_size, device)
@@ -60,4 +58,4 @@ def main():
                 optimizer.step()
                 total_loss += loss.data.mean()
         print(total_loss.item())
-    write_embedding(dataset.vocab.itos, model.criterion.W, use_cuda, 'test_embedding.vec')
+    write_embedding(dataset.vocab.itos, model.criterion.W, use_cuda, args.wordsfile)
