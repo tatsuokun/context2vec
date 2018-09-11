@@ -7,58 +7,76 @@ class Dataset:
                  batch_size: int,
                  device: int,
                  pad_token='<PAD>',
-                 unk_token='<UNK>'):
+                 unk_token='<UNK>',
+                 bos_token='<BOS>',
+                 eos_token='<EOS>'):
 
         self.sentences = sentences
-        self.reversed_sentences = [sentence[::-1] for sentence in sentences]
-        self.sentence_id = [[i] for i in range(len(sentences))]
+        self.sent_dict = self._gathered_by_lengths(sentences)
         self.pad_token = pad_token
         self.unk_token = unk_token
+        self.bos_token = bos_token
+        self.eos_token = eos_token
         self.device = device
 
         self.sentence_field = data.Field(use_vocab=True,
                                          unk_token=self.unk_token,
                                          pad_token=self.pad_token,
+                                         init_token=self.bos_token,
+                                         eos_token=self.eos_token,
                                          batch_first=True,
-                                         include_lengths=True)
-        self.reversed_sentence_field = data.Field(use_vocab=True,
-                                                  unk_token=self.unk_token,
-                                                  pad_token=self.pad_token,
-                                                  batch_first=True)
+                                         include_lengths=False)
         self.sentence_id_field = data.Field(use_vocab=False, batch_first=True)
 
         self.sentence_field.build_vocab(sentences, min_freq=0)
-        self.vocab = self.reversed_sentence_field.vocab = self.sentence_field.vocab
+        self.vocab = self.sentence_field.vocab
         if self.pad_token:
             self.pad_index = self.sentence_field.vocab.stoi[self.pad_token]
 
-        self.dataset = self._create_dataset()
-        self._set_batch_iter(batch_size)
+        self.dataset = self._create_dataset(self.sent_dict, sentences)
 
     def get_raw_sentence(self, sentences):
         return [[self.vocab.itos[idx] for idx in sentence]
                 for sentence in sentences]
 
-    def _create_dataset(self):
+    def _gathered_by_lengths(self, sentences, max_sent_length=120):
+        lengths = [(index, len(sent)) for index, sent in enumerate(sentences)]
+        lengths = sorted(lengths, key=lambda x: x[1], reverse=True)
+
+        sent_dict = dict()
+        current_length = -1
+        for (index, length) in lengths:
+            if length > max_sent_length:
+                continue
+            if current_length == length:
+                sent_dict[length].append(index)
+            else:
+                sent_dict[length] = [index]
+                current_length = length
+
+        return sent_dict
+
+    def _create_dataset(self, sent_dict, sentences):
+        datasets = dict()
         _fields = [('sentence', self.sentence_field),
-                   ('reversed_sentence', self.reversed_sentence_field),
                    ('id', self.sentence_id_field)]
-        items = [[sentence, rev_sentence, id] for sentence, rev_sentence, id
-                 in zip(self.sentences, self.reversed_sentences, self.sentence_id)]
-        return data.Dataset(self._get_examples(items, _fields), _fields)
+        for sent_length, sent_indices in sent_dict.items():
+            items = [[sentences[index], [index]] for index in sent_indices]
+            datasets[sent_length] = data.Dataset(self._get_examples(items, _fields), _fields)
+        return datasets.values()
 
     def _get_examples(self, items: list, fields: list):
         return [data.Example.fromlist(item, fields) for item in items]
 
-    def _set_batch_iter(self, batch_size: int):
+    def get_batch_iter(self, batch_size: int):
 
         def sort(data: data.Dataset) -> int:
             return len(getattr(data, 'sentence'))
 
-        self.batch_iter = data.BucketIterator(dataset=self.dataset,
-                                              batch_size=batch_size,
-                                              sort_key=sort,
-                                              train=True,
-                                              repeat=False,
-                                              sort_within_batch=True,
-                                              device=self.device)
+        for dataset in self.dataset:
+            yield data.Iterator(dataset=dataset,
+                                batch_size=batch_size,
+                                sort_key=sort,
+                                train=True,
+                                repeat=False,
+                                device=self.device)

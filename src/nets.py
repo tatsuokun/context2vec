@@ -21,7 +21,7 @@ class Context2vec(nn.Module):
         self.hidden_size = hidden_size
         self.n_layers = n_layers
         self.rnn_output_size = hidden_size
-        self.weighting = True
+        self.weighting = False
 
         self.drop = nn.Dropout(dropout)
         self.l2r_emb = nn.Embedding(num_embeddings=vocab_size,
@@ -60,30 +60,22 @@ class Context2vec(nn.Module):
         self.r2l_emb.weight.data.uniform_(-initrange, initrange)
         self.l2r_emb.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self,
-                sentences,
-                reversed_sentences,
-                lengths):
+    def forward(self, sentences):
 
         batch_size, seq_len = sentences.size()
+        target = sentences[:, 1:-1]
+        reversed_sentences = sentences.flip(1)[:, :-1]
+        sentences = sentences[:, :-1]
         hidden = self.init_hidden(batch_size)
 
         l2r_emb = self.l2r_emb(sentences)
         r2l_emb = self.r2l_emb(reversed_sentences)
 
-        packed_l2r_emb = l2r_emb
-        packed_r2l_emb = r2l_emb
-        if lengths is not None:
-            lengths = lengths.view(-1).tolist()
-            packed_l2r_emb = nn.utils.rnn.pack_padded_sequence(l2r_emb, lengths, batch_first=True)
-            packed_r2l_emb = nn.utils.rnn.pack_padded_sequence(r2l_emb, lengths, batch_first=True)
+        output_l2r, hidden = self.l2r_rnn(l2r_emb)
+        output_r2l, hidden = self.r2l_rnn(r2l_emb)
 
-        output_l2r, hidden = self.l2r_rnn(packed_l2r_emb)
-        output_r2l, hidden = self.r2l_rnn(packed_r2l_emb)
-
-        if lengths is not None:
-            output_l2r = torch.nn.utils.rnn.pad_packed_sequence(output_l2r)[0]
-            output_r2l = torch.nn.utils.rnn.pad_packed_sequence(output_r2l)[0]
+        output_l2r = output_l2r[:, :-1, :]
+        output_r2l = output_r2l[:, :-1, :].flip(1)
 
         if self.weighting:
             s_task = torch.nn.functional.softmax(self.weights, dim=0)
@@ -92,9 +84,9 @@ class Context2vec(nn.Module):
         else:
             c_i = self.MLP(torch.cat((output_l2r, output_r2l), dim=2))
 
-        print(c_i)
-        quit()
-        return 0
+        loss = self.criterion(target, c_i)
+
+        return loss
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters())
