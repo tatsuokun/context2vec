@@ -5,13 +5,15 @@ class Dataset:
     def __init__(self,
                  sentences: list,
                  batch_size: int,
+                 min_freq: int,
                  device: int,
+                 max_sent_length=64,
                  pad_token='<PAD>',
                  unk_token='<UNK>',
                  bos_token='<BOS>',
                  eos_token='<EOS>'):
 
-        self.sentences = sentences
+        self.sentences = [sentence for sentence in sentences if len(sentence) < max_sent_length and sentence]
         self.sent_dict = self._gathered_by_lengths(sentences)
         self.pad_token = pad_token
         self.unk_token = unk_token
@@ -28,7 +30,7 @@ class Dataset:
                                          include_lengths=False)
         self.sentence_id_field = data.Field(use_vocab=False, batch_first=True)
 
-        self.sentence_field.build_vocab(sentences, min_freq=0)
+        self.sentence_field.build_vocab(sentences, min_freq=min_freq)
         self.vocab = self.sentence_field.vocab
         if self.pad_token:
             self.pad_index = self.sentence_field.vocab.stoi[self.pad_token]
@@ -39,15 +41,13 @@ class Dataset:
         return [[self.vocab.itos[idx] for idx in sentence]
                 for sentence in sentences]
 
-    def _gathered_by_lengths(self, sentences, max_sent_length=120):
+    def _gathered_by_lengths(self, sentences):
         lengths = [(index, len(sent)) for index, sent in enumerate(sentences)]
         lengths = sorted(lengths, key=lambda x: x[1], reverse=True)
 
         sent_dict = dict()
         current_length = -1
         for (index, length) in lengths:
-            if length > max_sent_length:
-                continue
             if current_length == length:
                 sent_dict[length].append(index)
             else:

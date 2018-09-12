@@ -8,7 +8,7 @@ def parse_args():
     parser.add_argument('--gpu-id', '-g', default=gpu_id, type=int)
     parser.add_argument('--input-file', '-i', default='dataset/sample.txt', type=str,
                         help='specify input file')
-    parser.add_argument('--trimfreq', '-t', default=0, type=int,
+    parser.add_argument('--trimfreq', '-t', default=3, type=int,
                         help='minimum frequency for word in training')
     parser.add_argument('--ns_power', '-p', default=0.75, type=float,
                         help='negative sampling power')

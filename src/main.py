@@ -27,7 +27,7 @@ def main():
     with open(args.input_file) as f:
         sentences = [line.strip().lower().split() for line in f]
 
-    dataset = Dataset(sentences, batch_size, device)
+    dataset = Dataset(sentences, batch_size, args.trimfreq, device)
     counter = np.array([dataset.vocab.freqs[word] if word in dataset.vocab.freqs else 0
                         for word in dataset.vocab.itos])
     model = Context2vec(vocab_size=len(dataset.vocab),
@@ -52,8 +52,8 @@ def main():
         for iterator in dataset.get_batch_iter(batch_size):
             for batch in iterator:
                 sentence = getattr(batch, 'sentence')
-                loss = model(sentence)
                 optimizer.zero_grad()
+                loss = model(sentence)
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.data.mean()
