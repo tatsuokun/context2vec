@@ -6,9 +6,11 @@ def parse_args():
     gpu_id = -1
     parser = argparse.ArgumentParser(prog='src')
     parser.add_argument('--gpu-id', '-g', default=gpu_id, type=int)
+    parser.add_argument('--train', '-t', action='store_true',
+                        help='train or not')
     parser.add_argument('--input-file', '-i', default='dataset/sample.txt', type=str,
                         help='specify input file')
-    parser.add_argument('--trimfreq', '-t', default=3, type=int,
+    parser.add_argument('--freq_min', '-f', default=3, type=int,
                         help='minimum frequency for word in training')
     parser.add_argument('--ns_power', '-p', default=0.75, type=float,
                         help='negative sampling power')

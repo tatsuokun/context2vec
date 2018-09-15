@@ -12,6 +12,7 @@ class Context2vec(nn.Module):
                  hidden_size,
                  n_layers,
                  bidirectional,
+                 use_mlp,
                  dropout,
                  pad_index,
                  device,
@@ -21,9 +22,10 @@ class Context2vec(nn.Module):
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.n_layers = n_layers
+        self.use_mlp = use_mlp
         self.device = device
+        self.inference = inference
         self.rnn_output_size = hidden_size
-        self.weighting = False
 
         self.drop = nn.Dropout(dropout)
         self.l2r_emb = nn.Embedding(num_embeddings=vocab_size,
@@ -47,14 +49,14 @@ class Context2vec(nn.Module):
                                           power=0.75,
                                           device=device)
 
-        if self.weighting:
-            self.weights = nn.Parameter(torch.zeros(2, hidden_size))
-            self.gamma = nn.Parameter(torch.ones(1))
-        else:
+        if use_mlp:
             self.MLP = MLP(input_size=hidden_size*2,
                            mid_size=hidden_size*2,
                            output_size=hidden_size,
                            dropout=dropout)
+        else:
+            self.weights = nn.Parameter(torch.zeros(2, hidden_size))
+            self.gamma = nn.Parameter(torch.ones(1))
 
         self.init_weights()
 
@@ -63,10 +65,9 @@ class Context2vec(nn.Module):
         self.r2l_emb.weight.data.uniform_(-initrange, initrange)
         self.l2r_emb.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, sentences):
+    def forward(self, sentences, target, target_pos=None):
 
         batch_size, seq_len = sentences.size()
-        target = sentences[:, 1:-1]
         reversed_sentences = sentences.flip(1)[:, :-1]
         sentences = sentences[:, :-1]
         hidden = self.init_hidden(batch_size)
@@ -80,16 +81,26 @@ class Context2vec(nn.Module):
         output_l2r = output_l2r[:, :-1, :]
         output_r2l = output_r2l[:, :-1, :].flip(1)
 
-        if self.weighting:
-            s_task = torch.nn.functional.softmax(self.weights, dim=0)
-            c_i = torch.stack((output_l2r, output_r2l), dim=2) * s_task
-            c_i = self.gamma * c_i.sum(2)
+        if self.inference:
+            if self.use_mlp:
+                # we do not want to predict BOS/EOS
+                output_l2r = output_l2r[0, target_pos+1]
+                output_r2l = output_r2l[0, target_pos+1]
+                c_i = self.MLP(torch.cat((output_l2r, output_r2l), dim=0))
+            else:
+                raise NotImplementedError
+            return c_i
+
         else:
-            c_i = self.MLP(torch.cat((output_l2r, output_r2l), dim=2))
+            if self.use_mlp:
+                c_i = self.MLP(torch.cat((output_l2r, output_r2l), dim=2))
+            else:
+                s_task = torch.nn.functional.softmax(self.weights, dim=0)
+                c_i = torch.stack((output_l2r, output_r2l), dim=2) * s_task
+                c_i = self.gamma * c_i.sum(2)
 
-        loss = self.criterion(target, c_i)
-
-        return loss
+            loss = self.criterion(target, c_i)
+            return loss
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters())
