@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import numpy as np
+import numpy
 
 
 class NegativeSampling(nn.Module):
@@ -24,27 +24,11 @@ class NegativeSampling(nn.Module):
                               padding_idx=ignore_index)
         self.W.weight.data.zero_()
         self.logsigmoid = nn.LogSigmoid()
-        self.negative_table = self.init_negative_table(counter)
+        self.sampler = WalkerAlias(numpy.power(counter, 0.75))
 
-    def init_negative_table(self, counter, table_length=10*7):
-        self.negative_table_size = table_length
-        z = np.sum(np.power(counter, self.power))
-        negative_table = np.zeros(table_length, dtype=np.int32)
-        begin_index = 0
-        for word_id, freq in enumerate(counter):
-            c = np.power(freq, self.power)
-            end_index = begin_index + int(c * table_length / z) + 1
-            negative_table[begin_index:end_index] = word_id
-            begin_index = end_index
-        return negative_table
-
-    def negative_sampling(self, num_negatives, size):
-        if num_negatives > 0:
-            negatives = self.negative_table[np.random.randint(low=0,
-                                                              high=self.negative_table_size,
-                                                              size=size)]
-            negatives = torch.from_numpy(negatives).long().to(self.device)
-            return negatives
+    def negative_sampling(self, shape):
+        if self.n_negatives > 0:
+            return torch.tensor(self.sampler.sample(shape=shape), dtype=torch.long, device=self.device)
         else:
             raise NotImplementedError
 
@@ -53,7 +37,42 @@ class NegativeSampling(nn.Module):
         emb = self.W(sentence)
         pos_loss = self.logsigmoid((emb*context).sum(2)).sum()
 
-        neg_samples = self.negative_sampling(self.n_negatives, (batch_size, seq_len, self.n_negatives))
+        neg_samples = self.negative_sampling(shape=(batch_size, seq_len, self.n_negatives))
         neg_emb = self.W(neg_samples)
         neg_loss = self.logsigmoid((-neg_emb*context.unsqueeze(2)).sum(3)).sum()
-        return -(pos_loss+neg_loss)/batch_size
+        return -(pos_loss+neg_loss)
+
+
+class WalkerAlias(object):
+
+    def __init__(self, probs):
+        prob = numpy.array(probs, numpy.float32)
+        prob /= numpy.sum(prob)
+        threshold = numpy.ndarray(len(probs), numpy.float32)
+        values = numpy.ndarray(len(probs) * 2, numpy.int32)
+        il, ir = 0, 0
+        pairs = list(zip(prob, range(len(probs))))
+        pairs.sort()
+        for prob, i in pairs:
+            p = prob * len(probs)
+            while p > 1 and ir < il:
+                values[ir * 2 + 1] = i
+                p -= 1.0 - threshold[ir]
+                ir += 1
+            threshold[il] = p
+            values[il * 2] = i
+            il += 1
+        # fill the rest
+        for i in range(ir, len(probs)):
+            values[i * 2 + 1] = 0
+
+        assert((values < len(threshold)).all())
+        self.threshold = threshold
+        self.values = values
+
+    def sample(self, shape):
+        ps = numpy.random.uniform(0, 1, shape)
+        pb = ps * len(self.threshold)
+        index = pb.astype(numpy.int32)
+        left_right = (self.threshold[index] < pb - index).astype(numpy.int32)
+        return self.values[index * 2 + left_right]

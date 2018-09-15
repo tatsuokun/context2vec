@@ -22,8 +22,13 @@ def main():
     else:
         device = torch.device('cpu')
 
+    output_dir = os.path.dirname(args.wordsfile)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     if not os.path.isfile(args.input_file):
         raise FileNotFoundError
+
     with open(args.input_file) as f:
         sentences = [line.strip().lower().split() for line in f]
 

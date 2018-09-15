@@ -14,9 +14,9 @@ def parse_args():
                         help='negative sampling power')
     parser.add_argument('--dropout', '-o', default=0.0, type=float,
                         help='nn dropout')
-    parser.add_argument('--wordsfile', '-w', default=None,
+    parser.add_argument('--wordsfile', '-w', default='models/embedding.vec',
                         help='word embeddings output filename')
-    parser.add_argument('--modelfile', '-m', default=None,
+    parser.add_argument('--modelfile', '-m', default='models/model.param',
                         help='model output filename')
     parser.add_argument('--hidden_size', '-u', default=300, type=int,
                         help='number of units (dimensions) of one context word')
