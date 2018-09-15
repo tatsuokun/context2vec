@@ -27,7 +27,7 @@ Running on GPU_ID 0 with (batch_size=100, hidden_size=300 and epochs=10) using I
 python -m src -g 0 -b 100 -u 300 -e 10 -i INPUT_FILE -w OUTPUT_FILE
 ```
 ## Reference
- - The [original implementation](https://github.com/orenmel/context2vec) (written in Chainer) by the [author](https://researcher.watson.ibm.com/researcher/view.php?person=ibm-Oren.Melamud).
+ - The original implementation (written in Chainer) by the [author](https://researcher.watson.ibm.com/researcher/view.php?person=ibm-Oren.Melamud) can be found [here](https://github.com/orenmel/context2vec).
 
 ```
 @InProceedings{K16-1006,
