@@ -13,7 +13,7 @@ class Dataset:
                  bos_token='<BOS>',
                  eos_token='<EOS>'):
 
-        self.sentences = [sentence for sentence in sentences if len(sentence) < max_sent_length and sentence]
+        self.sentences = [sentence for sentence in sentences if 0 < len(sentence) < max_sent_length]
         self.sent_dict = self._gathered_by_lengths(sentences)
         self.pad_token = pad_token
         self.unk_token = unk_token

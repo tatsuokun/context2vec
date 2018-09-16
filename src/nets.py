@@ -83,14 +83,12 @@ class Context2vec(nn.Module):
 
         if self.inference:
             if self.use_mlp:
-                # we do not want to predict BOS/EOS
-                output_l2r = output_l2r[0, target_pos+1]
-                output_r2l = output_r2l[0, target_pos+1]
+                output_l2r = output_l2r[0, target_pos]
+                output_r2l = output_r2l[0, target_pos]
                 c_i = self.MLP(torch.cat((output_l2r, output_r2l), dim=0))
             else:
                 raise NotImplementedError
             return c_i
-
         else:
             if self.use_mlp:
                 c_i = self.MLP(torch.cat((output_l2r, output_r2l), dim=2))
@@ -106,6 +104,11 @@ class Context2vec(nn.Module):
         weight = next(self.parameters())
         return (weight.new_zeros(self.n_layers, batch_size, self.hidden_size),
                 weight.new_zeros(self.n_layers, batch_size, self.hidden_size))
+
+    def run_inference(self, input_tokens, target_pos, k=10):
+        context_vector = self.forward(input_tokens, target=None, target_pos=target_pos)
+        topv, topi = ((self.criterion.W.weight*context_vector).sum(dim=1)).data.topk(k)
+        return topv, topi
 
 
 class MLP(nn.Module):

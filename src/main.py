@@ -8,6 +8,43 @@ from src.util.io import write_embedding, write_config, read_config, load_vocab
 from src.nets import Context2vec
 
 
+def run_inference_by_user_input(model,
+                                itos,
+                                stoi,
+                                unk_token,
+                                bos_token,
+                                eos_token,
+                                device):
+
+    def return_split_sentence(sentence):
+        if ' ' not in sentence:
+            print('sentence should contain white space to split it into tokens')
+            raise SyntaxError
+        elif '[]' not in sentence:
+            print('sentence should contain `[]` that notes the target')
+            raise SyntaxError
+        else:
+            tokens = sentence.lower().strip().split()
+            target_pos = tokens.index('[]')
+            return tokens, target_pos
+
+    while True:
+        sentence = input('>> ')
+        try:
+            tokens, target_pos = return_split_sentence(sentence)
+        except SyntaxError:
+            continue
+        tokens[target_pos] = unk_token
+        tokens = [bos_token] + tokens + [eos_token]
+        target_pos += 1  # because of inserting BOS/EOS
+        indexed_sentence = [stoi[token] if token in stoi else stoi[unk_token] for token in tokens]
+        input_tokens = \
+            torch.tensor(indexed_sentence, dtype=torch.long, device=device).unsqueeze(0)
+        topv, topi = model.run_inference(input_tokens, target_pos)
+        for v, i in zip(topv, topi):
+            print(v.item(), itos[i.item()])
+
+
 def main():
     args = parse_args()
     gpu_id = args.gpu_id
@@ -108,17 +145,10 @@ def main():
         eos_token = config_dict['eos_token']
         model.eval()
 
-        with open(args.input_file) as f:
-            sentences = [line.strip().lower().split() for line in f]
-        test_sentence = sentences[0]
-        print(test_sentence)
-        indexed_sentence = [stoi[token] if token in stoi else stoi[unk_token] for token in test_sentence]
-        indexed_sentence = [stoi[bos_token]] + indexed_sentence + [stoi[eos_token]]
-        print(indexed_sentence)
-        input_tokens = \
-            torch.tensor(indexed_sentence, dtype=torch.long, device=device).unsqueeze(0)
-        print(input_tokens)
-        context_vector = model(input_tokens, target=None, target_pos=0)
-        topv, topi = ((model.criterion.W.weight*context_vector).sum(dim=1)).data.topk(10)
-        for v, i in zip(topv, topi):
-            print(v.item(), itos[i.item()])
+        run_inference_by_user_input(model,
+                                    itos,
+                                    stoi,
+                                    unk_token=unk_token,
+                                    bos_token=bos_token,
+                                    eos_token=eos_token,
+                                    device=device)
