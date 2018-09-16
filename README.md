@@ -58,3 +58,6 @@ python -m src -g 0 -w WORD_EMBEDDING_FILE -m MODEL_FILE
   url = 	"http://www.aclweb.org/anthology/K16-1006"
 }
 ```
+
+## LICENSE
+Apache 2.0
