@@ -10,22 +10,36 @@ This is a PyTorch implementation of [Context2Vec](http://www.aclweb.org/antholog
 ### Packages
  - torchtext
  
-### Quick Run
-
+## Quick Run
+### Train
 ```
-python -m src
+python -m src --train
 ```
 
 which means running on cpu and learning context vectors from a small piece of penn tree bank (that is in the repository). 
+(Note that you have to put flag `--train` if you want to train the model. Otherwise you might be on an inference mode.)
+
+### Inference
+```
+python -m src
+>> I am a [] .
+```
 
 
 ## Running with GPU and other settings
-
+### Train
 Running on GPU_ID 0 with (batch_size=100, hidden_size=300 and epochs=10) using INPUT_FILE and outputting a word vector file on OUTPUT_FILE.
 
 ```
-python -m src -g 0 -b 100 -u 300 -e 10 -i INPUT_FILE -w OUTPUT_FILE
+python -m src -g 0 -b 100 -u 300 -e 10 -i INPUT_FILE -w OUTPUT_FILE --train
 ```
+
+### Inference
+
+```
+python -m src -g 0 -w WORD_EMBEDDING_FILE -m MODEL_FILE
+```
+
 ## Reference
  - The original implementation (written in Chainer) by the [author](https://researcher.watson.ibm.com/researcher/view.php?person=ibm-Oren.Melamud) can be found [here](https://github.com/orenmel/context2vec).
 
