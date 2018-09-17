@@ -68,9 +68,14 @@ class Context2vec(nn.Module):
     def forward(self, sentences, target, target_pos=None):
 
         batch_size, seq_len = sentences.size()
+        hidden = self.init_hidden(batch_size)
+
+        # input: <BOS> a b c <EOS>
+        # reversed_sentences: <EOS> c b a
+        # sentences: <BOS> a b c
+
         reversed_sentences = sentences.flip(1)[:, :-1]
         sentences = sentences[:, :-1]
-        hidden = self.init_hidden(batch_size)
 
         l2r_emb = self.l2r_emb(sentences)
         r2l_emb = self.r2l_emb(reversed_sentences)
@@ -78,10 +83,21 @@ class Context2vec(nn.Module):
         output_l2r, hidden = self.l2r_rnn(l2r_emb)
         output_r2l, hidden = self.r2l_rnn(r2l_emb)
 
+        # output_l2r: h(<BOS>)   h(a)     h(b)
+        # output_r2l:     h(b)   h(c) h(<EOS>)
+
         output_l2r = output_l2r[:, :-1, :]
         output_r2l = output_r2l[:, :-1, :].flip(1)
 
         if self.inference:
+            # user_input: I like [] .
+            # target_pos: 2 (starts from zero)
+
+            # output_l2r:   h(<BOS>)      h(I)     h(like)      h([])
+            # output_r2l:    h(like)     h([])        h(.)   h(<EOS>)
+            # output_l2r[target_pos]: h(like)
+            # output_r2l[target_pos]:    h(.)
+
             if self.use_mlp:
                 output_l2r = output_l2r[0, target_pos]
                 output_r2l = output_r2l[0, target_pos]
@@ -107,8 +123,14 @@ class Context2vec(nn.Module):
 
     def run_inference(self, input_tokens, target_pos, k=10):
         context_vector = self.forward(input_tokens, target=None, target_pos=target_pos)
+        # context_vector /= torch.norm(context_vector, p=2)
         topv, topi = ((self.criterion.W.weight*context_vector).sum(dim=1)).data.topk(k)
         return topv, topi
+
+    def norm_embedding_weight(self, embedding_module):
+        embedding_module.weight.data /= torch.norm(embedding_module.weight.data, p=2, dim=1, keepdim=True)
+        # replace NaN with zero
+        embedding_module.weight.data[embedding_module.weight.data != embedding_module.weight.data] = 0
 
 
 class MLP(nn.Module):

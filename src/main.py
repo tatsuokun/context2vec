@@ -28,6 +28,10 @@ def run_inference_by_user_input(model,
             target_pos = tokens.index('[]')
             return tokens, target_pos
 
+    ''' norm_weight
+    model.norm_embedding_weight(model.criterion.W)
+    '''
+
     while True:
         sentence = input('>> ')
         try:
@@ -36,13 +40,12 @@ def run_inference_by_user_input(model,
             continue
         tokens[target_pos] = unk_token
         tokens = [bos_token] + tokens + [eos_token]
-        target_pos += 1  # because of inserting BOS/EOS
         indexed_sentence = [stoi[token] if token in stoi else stoi[unk_token] for token in tokens]
         input_tokens = \
             torch.tensor(indexed_sentence, dtype=torch.long, device=device).unsqueeze(0)
         topv, topi = model.run_inference(input_tokens, target_pos)
-        for v, i in zip(topv, topi):
-            print(v.item(), itos[i.item()])
+        for value, key in zip(topv, topi):
+            print(value.item(), itos[key.item()])
 
 
 def main():
