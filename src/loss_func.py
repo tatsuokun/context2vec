@@ -24,7 +24,7 @@ class NegativeSampling(nn.Module):
                               padding_idx=ignore_index)
         self.W.weight.data.zero_()
         self.logsigmoid = nn.LogSigmoid()
-        self.sampler = WalkerAlias(numpy.power(counter, 0.75))
+        self.sampler = WalkerAlias(numpy.power(counter, power))
 
     def negative_sampling(self, shape):
         if self.n_negatives > 0:
@@ -35,12 +35,12 @@ class NegativeSampling(nn.Module):
     def forward(self, sentence, context):
         batch_size, seq_len = sentence.size()
         emb = self.W(sentence)
-        pos_loss = self.logsigmoid((emb*context).sum(2)).sum()
+        pos_loss = self.logsigmoid((emb*context).sum(2))
 
         neg_samples = self.negative_sampling(shape=(batch_size, seq_len, self.n_negatives))
         neg_emb = self.W(neg_samples)
-        neg_loss = self.logsigmoid((-neg_emb*context.unsqueeze(2)).sum(3)).sum()
-        return -(pos_loss+neg_loss)
+        neg_loss = self.logsigmoid((-neg_emb*context.unsqueeze(2)).sum(3)).sum(2)
+        return -(pos_loss+neg_loss).sum()
 
 
 class WalkerAlias(object):

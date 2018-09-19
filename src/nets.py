@@ -42,7 +42,7 @@ class Context2vec(nn.Module):
                                hidden_size=hidden_size,
                                num_layers=n_layers,
                                batch_first=True)
-        self.criterion = NegativeSampling(word_embed_size,
+        self.criterion = NegativeSampling(hidden_size,
                                           counter,
                                           ignore_index=pad_index,
                                           n_negatives=10,
@@ -123,7 +123,7 @@ class Context2vec(nn.Module):
 
     def run_inference(self, input_tokens, target_pos, k=10):
         context_vector = self.forward(input_tokens, target=None, target_pos=target_pos)
-        # context_vector /= torch.norm(context_vector, p=2)
+        context_vector /= torch.norm(context_vector, p=2)
         topv, topi = ((self.criterion.W.weight*context_vector).sum(dim=1)).data.topk(k)
         return topv, topi
 
