@@ -26,5 +26,7 @@ def parse_args():
                         help='learning minibatch size')
     parser.add_argument('--epoch', '-e', default=10, type=int,
                         help='number of epochs to learn')
+    parser.add_argument('--task', default='', type=str,
+                        help='choose evaluation task from [mscc]')
 
     return parser.parse_args()
