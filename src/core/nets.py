@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 from src.core.loss_func import NegativeSampling
@@ -20,6 +21,7 @@ class Context2vec(nn.Module):
 
         super(Context2vec, self).__init__()
         self.vocab_size = vocab_size
+        self.word_embed_size = word_embed_size
         self.hidden_size = hidden_size
         self.n_layers = n_layers
         self.use_mlp = use_mlp
@@ -61,9 +63,9 @@ class Context2vec(nn.Module):
         self.init_weights()
 
     def init_weights(self):
-        initrange = 0.1
-        self.r2l_emb.weight.data.uniform_(-initrange, initrange)
-        self.l2r_emb.weight.data.uniform_(-initrange, initrange)
+        std = math.sqrt(1. / self.word_embed_size)
+        self.r2l_emb.weight.data.normal_(0, std)
+        self.l2r_emb.weight.data.normal_(0, std)
 
     def forward(self, sentences, target, target_pos=None):
 
@@ -114,7 +116,7 @@ class Context2vec(nn.Module):
                 c_i = torch.stack((output_l2r, output_r2l), dim=2) * s_task
                 c_i = self.gamma * c_i.sum(2)
 
-            loss = self.criterion(target.view(-1), c_i.contiguous().view(-1, self.hidden_size))
+            loss = self.criterion(target.contiguous().view(-1), c_i.contiguous().view(-1, self.hidden_size))
             return loss
 
     def init_hidden(self, batch_size):
@@ -130,6 +132,7 @@ class Context2vec(nn.Module):
         else:
             context_vector /= torch.norm(context_vector, p=2)
             target_vector = self.criterion.W.weight[target]
+            target_vector /= torch.norm(target_vector, p=2)
             similarity = (target_vector * context_vector).sum()
             return similarity.item()
 
