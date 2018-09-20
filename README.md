@@ -50,8 +50,8 @@ There is approximatitely 3x speed up compared to the original implementation.
 
 | - | Reported score | This implementation |
 |:---:|:---:|:---:|
-| TEST | 64.0 | 67.1 |
-| ALL | 65.1 | 67.0 |
+| TEST | 64.0 | 65.9 |
+| ALL | 65.1 | 65.8 |
 
 ## Reference
  - The original implementation (written in Chainer) by the [author](https://researcher.watson.ibm.com/researcher/view.php?person=ibm-Oren.Melamud) can be found [here](https://github.com/orenmel/context2vec).
