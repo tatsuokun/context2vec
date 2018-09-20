@@ -9,6 +9,7 @@ This is a PyTorch implementation of [Context2Vec](http://www.aclweb.org/antholog
  
 ### Packages
  - torchtext
+ - nltk
  
 ## Quick Run
 ### Train
@@ -24,7 +25,7 @@ which means running on cpu and learning context vectors from a small piece of pe
 python -m src
 >> I am a [] .
 ```
-
+(Note that you might not get a good result if you use the model that learns from a part of penn tree (i.e. `dataset/sample.txt`) because it does not contain enough data for learning context vectors. The reason why I put this sample in the repository is that you can easily check whether this program could actually work.)
 
 ## Running with GPU and other settings
 ### Train
@@ -39,6 +40,18 @@ python -m src -g 0 -b 100 -u 300 -e 10 -i INPUT_FILE -w OUTPUT_FILE --train
 ```
 python -m src -g 0 -w WORD_EMBEDDING_FILE -m MODEL_FILE
 ```
+
+## Performance
+### Training Speed
+
+There is approximatitely 3x speed up compared to the original implementation.
+
+### MSR Sentence Completion
+
+| - | Reported score | This implementation |
+|:---:|:---:|:---:|
+| TEST | 64.0 | 67.1 |
+| ALL | 65.1 | 67.0 |
 
 ## Reference
  - The original implementation (written in Chainer) by the [author](https://researcher.watson.ibm.com/researcher/view.php?person=ibm-Oren.Melamud) can be found [here](https://github.com/orenmel/context2vec).
@@ -58,6 +71,3 @@ python -m src -g 0 -w WORD_EMBEDDING_FILE -m MODEL_FILE
   url = 	"http://www.aclweb.org/anthology/K16-1006"
 }
 ```
-
-## LICENSE
-Apache 2.0
