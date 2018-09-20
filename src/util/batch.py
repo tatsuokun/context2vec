@@ -1,3 +1,4 @@
+import numpy
 from torchtext import data
 
 
@@ -11,8 +12,10 @@ class Dataset:
                  pad_token='<PAD>',
                  unk_token='<UNK>',
                  bos_token='<BOS>',
-                 eos_token='<EOS>'):
+                 eos_token='<EOS>',
+                 seed=777):
 
+        numpy.random.seed(seed)
         self.sentences = [sentence for sentence in sentences if 0 < len(sentence) < max_sent_length]
         self.sent_dict = self._gathered_by_lengths(self.sentences)
         self.pad_token = pad_token
@@ -63,7 +66,7 @@ class Dataset:
         for sent_length, sent_indices in sent_dict.items():
             items = [[sentences[index], [index]] for index in sent_indices]
             datasets[sent_length] = data.Dataset(self._get_examples(items, _fields), _fields)
-        return datasets.values()
+        return numpy.random.permutation(list(datasets.values()))
 
     def _get_examples(self, items: list, fields: list):
         return [data.Example.fromlist(item, fields) for item in items]

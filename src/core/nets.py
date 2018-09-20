@@ -70,7 +70,6 @@ class Context2vec(nn.Module):
     def forward(self, sentences, target, target_pos=None):
 
         batch_size, seq_len = sentences.size()
-        hidden = self.init_hidden(batch_size)
 
         # input: <BOS> a b c <EOS>
         # reversed_sentences: <EOS> c b a

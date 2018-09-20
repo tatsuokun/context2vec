@@ -33,11 +33,11 @@ class NegativeSampling(nn.Module):
             raise NotImplementedError
 
     def forward(self, sentence, context):
-        size = sentence.size(0)
+        batch_size = sentence.size(0)
         emb = self.W(sentence)
         pos_loss = self.logsigmoid((emb*context).sum(1))
 
-        neg_samples = self.negative_sampling(shape=(size, self.n_negatives))
+        neg_samples = self.negative_sampling(shape=(batch_size, self.n_negatives))
         neg_emb = self.W(neg_samples)
         neg_loss = self.logsigmoid((-neg_emb*context.unsqueeze(1)).sum(2)).sum(1)
         return -(pos_loss+neg_loss).sum()
@@ -46,7 +46,7 @@ class NegativeSampling(nn.Module):
 class WalkerAlias(object):
     '''
     This is from Chainer's implementation.
-    You can find the original code at 
+    You can find the original code at
     https://github.com/chainer/chainer/blob/v4.4.0/chainer/utils/walker_alias.py
     This class is
         Copyright (c) 2015 Preferred Infrastructure, Inc.

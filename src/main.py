@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import time
 import torch
 from torch import optim
 from src.eval.mscc import mscc_evaluation
@@ -91,8 +92,15 @@ def main():
         print(batch_size, n_epochs, word_embed_size, hidden_size, device)
         print(model)
 
+        interval = 1e6
         for epoch in range(args.epoch):
+            begin_time = time.time()
+            cur_at = begin_time
             total_loss = 0.0
+            word_count = 0
+            next_count = interval
+            last_accum_loss = 0.0
+            last_word_count = 0
             for iterator in dataset.get_batch_iter(batch_size):
                 for batch in iterator:
                     sentence = getattr(batch, 'sentence')
@@ -104,6 +112,22 @@ def main():
                     loss.backward()
                     optimizer.step()
                     total_loss += loss.data.mean()
+
+                    minibatch_size, sentence_length = target.size()
+                    word_count += minibatch_size * sentence_length
+                    accum_mean_loss = float(total_loss)/word_count if total_loss > 0.0 else 0.0
+                    if word_count >= next_count:
+                        now = time.time()
+                        duration = now - cur_at
+                        throuput = float((word_count-last_word_count)) / (now - cur_at)
+                        cur_mean_loss = (float(total_loss)-last_accum_loss)/(word_count-last_word_count)
+                        print('{} words, {:.2f} sec, {:.2f} words/sec, {:.4f} accum_loss/word, {:.4f} cur_loss/word'
+                              .format(word_count, duration, throuput, accum_mean_loss, cur_mean_loss))
+                        next_count += interval
+                        cur_at = now
+                        last_accum_loss = float(total_loss)
+                        last_word_count = word_count
+
             print(total_loss.item())
 
         output_dir = os.path.dirname(args.wordsfile)
