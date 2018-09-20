@@ -7,14 +7,14 @@ class Dataset:
                  batch_size: int,
                  min_freq: int,
                  device: int,
-                 max_sent_length=64,
+                 max_sent_length=128,
                  pad_token='<PAD>',
                  unk_token='<UNK>',
                  bos_token='<BOS>',
                  eos_token='<EOS>'):
 
         self.sentences = [sentence for sentence in sentences if 0 < len(sentence) < max_sent_length]
-        self.sent_dict = self._gathered_by_lengths(sentences)
+        self.sent_dict = self._gathered_by_lengths(self.sentences)
         self.pad_token = pad_token
         self.unk_token = unk_token
         self.bos_token = bos_token
@@ -30,12 +30,12 @@ class Dataset:
                                          include_lengths=False)
         self.sentence_id_field = data.Field(use_vocab=False, batch_first=True)
 
-        self.sentence_field.build_vocab(sentences, min_freq=min_freq)
+        self.sentence_field.build_vocab(self.sentences, min_freq=min_freq)
         self.vocab = self.sentence_field.vocab
         if self.pad_token:
             self.pad_index = self.sentence_field.vocab.stoi[self.pad_token]
 
-        self.dataset = self._create_dataset(self.sent_dict, sentences)
+        self.dataset = self._create_dataset(self.sent_dict, self.sentences)
 
     def get_raw_sentence(self, sentences):
         return [[self.vocab.itos[idx] for idx in sentence]

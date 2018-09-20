@@ -162,7 +162,6 @@ def main():
                             eos_token=eos_token,
                             device=device)
 
-
         else:
             run_inference_by_user_input(model,
                                         itos,

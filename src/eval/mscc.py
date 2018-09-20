@@ -2,15 +2,15 @@
 The function create_mscc_dataset is Copyright 2016 Oren Melamud
 Modifications copyright (C) 2018 Tatsuya Aoki
 
-This code is based on  https://github.com/orenmel/context2vec/blob/master/context2vec/eval/mscc_text_tokenize.py
+This code is based on https://github.com/orenmel/context2vec/blob/master/context2vec/eval/mscc_text_tokenize.py
 Used to convert the Microsoft Sentence Completion Challnege (MSCC) learning corpus into a one-sentence-per-line format.
 '''
 
 import glob
-import sys
 import torch
+import sys
+import os
 from nltk.tokenize import word_tokenize, sent_tokenize
-import numpy as np
 
 
 def create_mscc_dataset(input_dir, output_filename, lowercase=True):
@@ -21,9 +21,15 @@ def create_mscc_dataset(input_dir, output_filename, lowercase=True):
                 sent = sent.lower()
             file_obj.write(' '.join(word_tokenize(sent))+'\n')
 
+    if input_dir[-1] != '/':
+        input_dir += '/'
+
+    if not os.path.isdir(input_dir):
+        raise NotADirectoryError
+
     print('Read files from', input_dir)
-    print('Output file to', output_filename)
-    files = glob.glob(input_dir + '/*.TXT')
+    print('Creating dataset to', output_filename)
+    files = glob.glob(input_dir + '*.TXT')
     with open(output_filename, mode='w') as output_file:
         for file in files:
             with open(file, mode='r', errors='ignore') as input_file:
@@ -81,8 +87,10 @@ def mscc_evaluation(input_file,
                 w.write(input_line.strip() + '\t' + str(similarity) + '\n')
 
 
-
 if __name__ == '__main__':
-    # create_mscc_dataset('/raid/tatsuo/MSR_Sentence_Completion_Challenge_V1/Holmes_Training_Data',
-    #                     'dataset/mscc_train.txt')
-    read_mscc_question('/raid/tatsuo/MSR_Sentence_Completion_Challenge_V1/Data/Holmes.machine_format.questions.txt')
+    if len(sys.argv) < 2:
+        print('Please specify your input directory that contains MSCC dataset.')
+        print('(Most of the case the name of the directory might be `Holmes_Training_Data`.)')
+        print('sample usage: python src/eval/mscc.py ~/dataset/Holmes_Training_Data/')
+        quit()
+    create_mscc_dataset(sys.argv[1], 'dataset/mscc_train.txt')
