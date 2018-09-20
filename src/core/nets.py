@@ -1,6 +1,7 @@
+import math
 import torch
 import torch.nn as nn
-from src.loss_func import NegativeSampling
+from src.core.loss_func import NegativeSampling
 
 
 class Context2vec(nn.Module):
@@ -20,6 +21,7 @@ class Context2vec(nn.Module):
 
         super(Context2vec, self).__init__()
         self.vocab_size = vocab_size
+        self.word_embed_size = word_embed_size
         self.hidden_size = hidden_size
         self.n_layers = n_layers
         self.use_mlp = use_mlp
@@ -61,14 +63,13 @@ class Context2vec(nn.Module):
         self.init_weights()
 
     def init_weights(self):
-        initrange = 0.1
-        self.r2l_emb.weight.data.uniform_(-initrange, initrange)
-        self.l2r_emb.weight.data.uniform_(-initrange, initrange)
+        std = math.sqrt(1. / self.word_embed_size)
+        self.r2l_emb.weight.data.normal_(0, std)
+        self.l2r_emb.weight.data.normal_(0, std)
 
     def forward(self, sentences, target, target_pos=None):
 
         batch_size, seq_len = sentences.size()
-        hidden = self.init_hidden(batch_size)
 
         # input: <BOS> a b c <EOS>
         # reversed_sentences: <EOS> c b a
@@ -80,8 +81,8 @@ class Context2vec(nn.Module):
         l2r_emb = self.l2r_emb(sentences)
         r2l_emb = self.r2l_emb(reversed_sentences)
 
-        output_l2r, hidden = self.l2r_rnn(l2r_emb)
-        output_r2l, hidden = self.r2l_rnn(r2l_emb)
+        output_l2r, _ = self.l2r_rnn(l2r_emb)
+        output_r2l, _ = self.r2l_rnn(r2l_emb)
 
         # output_l2r: h(<BOS>)   h(a)     h(b)
         # output_r2l:     h(b)   h(c) h(<EOS>)
@@ -106,6 +107,7 @@ class Context2vec(nn.Module):
                 raise NotImplementedError
             return c_i
         else:
+            # on a training phase
             if self.use_mlp:
                 c_i = self.MLP(torch.cat((output_l2r, output_r2l), dim=2))
             else:
@@ -113,7 +115,7 @@ class Context2vec(nn.Module):
                 c_i = torch.stack((output_l2r, output_r2l), dim=2) * s_task
                 c_i = self.gamma * c_i.sum(2)
 
-            loss = self.criterion(target, c_i)
+            loss = self.criterion(target.contiguous().view(-1), c_i.contiguous().view(-1, self.hidden_size))
             return loss
 
     def init_hidden(self, batch_size):
@@ -121,11 +123,17 @@ class Context2vec(nn.Module):
         return (weight.new_zeros(self.n_layers, batch_size, self.hidden_size),
                 weight.new_zeros(self.n_layers, batch_size, self.hidden_size))
 
-    def run_inference(self, input_tokens, target_pos, k=10):
+    def run_inference(self, input_tokens, target, target_pos, k=10):
         context_vector = self.forward(input_tokens, target=None, target_pos=target_pos)
-        context_vector /= torch.norm(context_vector, p=2)
-        topv, topi = ((self.criterion.W.weight*context_vector).sum(dim=1)).data.topk(k)
-        return topv, topi
+        if target is None:
+            topv, topi = ((self.criterion.W.weight*context_vector).sum(dim=1)).data.topk(k)
+            return topv, topi
+        else:
+            context_vector /= torch.norm(context_vector, p=2)
+            target_vector = self.criterion.W.weight[target]
+            target_vector /= torch.norm(target_vector, p=2)
+            similarity = (target_vector * context_vector).sum()
+            return similarity.item()
 
     def norm_embedding_weight(self, embedding_module):
         embedding_module.weight.data /= torch.norm(embedding_module.weight.data, p=2, dim=1, keepdim=True)
