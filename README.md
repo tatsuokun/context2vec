@@ -62,7 +62,7 @@ There is approximatitely 3x speed up compared to the original implementation.
 		and Goldberger, Jacob
 		and Dagan, Ido",
   title = 	"context2vec: Learning Generic Context Embedding with Bidirectional LSTM",
-  booktitle = 	"Proceedings of The 20th SIGNLL Conference on Computational Natural      Language Learning    ",
+  booktitle = 	"Proceedings of The 20th SIGNLL Conference on Computational Natural Language Learning",
   year = 	"2016",
   publisher = 	"Association for Computational Linguistics",
   pages = 	"51--61",
