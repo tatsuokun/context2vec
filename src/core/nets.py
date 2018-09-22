@@ -115,7 +115,7 @@ class Context2vec(nn.Module):
                 c_i = torch.stack((output_l2r, output_r2l), dim=2) * s_task
                 c_i = self.gamma * c_i.sum(2)
 
-            loss = self.criterion(target.contiguous().view(-1), c_i.contiguous().view(-1, self.hidden_size))
+            loss = self.criterion(target, c_i)
             return loss
 
     def init_hidden(self, batch_size):

@@ -33,13 +33,13 @@ class NegativeSampling(nn.Module):
             raise NotImplementedError
 
     def forward(self, sentence, context):
-        batch_size = sentence.size(0)
+        batch_size, seq_len = sentence.size()
         emb = self.W(sentence)
-        pos_loss = self.logsigmoid((emb*context).sum(1))
+        pos_loss = self.logsigmoid((emb*context).sum(2))
 
-        neg_samples = self.negative_sampling(shape=(batch_size, self.n_negatives))
+        neg_samples = self.negative_sampling(shape=(batch_size, seq_len, self.n_negatives))
         neg_emb = self.W(neg_samples)
-        neg_loss = self.logsigmoid((-neg_emb*context.unsqueeze(1)).sum(2)).sum(1)
+        neg_loss = self.logsigmoid((-neg_emb*context.unsqueeze(2)).sum(3)).sum(2)
         return -(pos_loss+neg_loss).sum()
 
 
