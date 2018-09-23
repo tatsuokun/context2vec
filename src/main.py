@@ -7,6 +7,7 @@ from src.eval.mscc import mscc_evaluation
 from src.core.nets import Context2vec
 from src.util.args import parse_args
 from src.util.batch import Dataset
+from src.util.config import Config
 from src.util.io import write_embedding, write_config, read_config, load_vocab
 
 
@@ -61,29 +62,31 @@ def main():
     else:
         device = torch.device('cpu')
 
+    config = Config(args.config_file)
+
     if train:
-        batch_size = args.batch_size
-        n_epochs = args.epoch
-        word_embed_size = args.hidden_size
-        hidden_size = args.hidden_size * 2
-        learning_rate = 1e-3
+        batch_size = config.batch_size
+        n_epochs = config.n_epochs
+        word_embed_size = config.word_embed_size
+        hidden_size = config.hidden_size
+        learning_rate = config.learning_rate
         if not os.path.isfile(args.input_file):
             raise FileNotFoundError
 
         with open(args.input_file) as f:
             sentences = [line.strip().lower().split() for line in f]
 
-        dataset = Dataset(sentences, batch_size, args.freq_min, device)
+        dataset = Dataset(sentences, batch_size, config.min_freq, device)
         counter = np.array([dataset.vocab.freqs[word] if word in dataset.vocab.freqs else 0
                             for word in dataset.vocab.itos])
         model = Context2vec(vocab_size=len(dataset.vocab),
                             counter=counter,
                             word_embed_size=word_embed_size,
                             hidden_size=hidden_size,
-                            n_layers=1,
+                            n_layers=config.n_layers,
                             bidirectional=True,
-                            use_mlp=True,
-                            dropout=0.0,
+                            use_mlp=config.use_mlp,
+                            dropout=config.dropout,
                             pad_index=dataset.pad_index,
                             device=device,
                             inference=False).to(device)
@@ -93,7 +96,7 @@ def main():
         print(model)
 
         interval = 1e6
-        for epoch in range(args.epoch):
+        for epoch in range(n_epochs):
             begin_time = time.time()
             cur_at = begin_time
             total_loss = 0.0
@@ -136,15 +139,15 @@ def main():
         write_embedding(dataset.vocab.itos, model.criterion.W, use_cuda, args.wordsfile)
         torch.save(model.state_dict(), args.modelfile)
         torch.save(optimizer.state_dict(), args.modelfile+'.optim')
-        config_file = args.modelfile+'.config.json'
-        write_config(config_file,
+        output_config_file = args.modelfile+'.config.json'
+        write_config(output_config_file,
                      vocab_size=len(dataset.vocab),
                      word_embed_size=word_embed_size,
                      hidden_size=hidden_size,
-                     n_layers=1,
+                     n_layers=config.n_layers,
                      bidirectional=True,
-                     use_mlp=True,
-                     dropout=0.0,
+                     use_mlp=config.use_mlp,
+                     dropout=config.dropout,
                      pad_index=dataset.pad_index,
                      unk_token=dataset.unk_token,
                      bos_token=dataset.bos_token,
@@ -174,10 +177,11 @@ def main():
         model.eval()
 
         if args.task == 'mscc':
-            if not os.path.isfile(args.input_file):
+            if not os.path.isfile(config.question_file) or not os.path.isfile(config.answer_file):
                 raise FileNotFoundError
 
-            mscc_evaluation(args.input_file,
+            mscc_evaluation(config.question_file,
+                            config.answer_file,
                             'mscc.result',
                             model,
                             stoi,

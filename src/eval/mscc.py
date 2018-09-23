@@ -7,6 +7,7 @@ Used to convert the Microsoft Sentence Completion Challnege (MSCC) learning corp
 '''
 
 import glob
+import numpy
 import torch
 import sys
 import os
@@ -60,11 +61,30 @@ def read_mscc_questions(input_file, lower=True):
                     target_pos = index
             if not target_word:
                 raise SyntaxError
-            questions.append([text, target_word, target_pos])
+            questions.append([text, q_id, target_word, target_pos])
     return questions
 
 
-def mscc_evaluation(input_file,
+def print_mscc_score(gold_q_id: list,
+                     q_id_and_sim: tuple):
+
+    assert len(q_id_and_sim) % 5 == 0
+
+    gold = numpy.array(gold_q_id)
+    answer = numpy.array([sorted(q_id_and_sim[5*i:5*(i+1)], key=lambda x:x[1], reverse=True)
+                          for i in range(int(len(q_id_and_sim)/5))])[:, 0, 0]
+    correct_or_not = (gold == answer)
+    mid = int(len(correct_or_not) / 2)
+    dev = correct_or_not[:mid]
+    test = correct_or_not[mid:]
+
+    print('Overall', float(sum(correct_or_not))/len(correct_or_not))
+    print('dev', float(sum(dev))/len(dev))
+    print('test', float(sum(test))/len(test))
+
+
+def mscc_evaluation(question_file,
+                    answer_file,
                     output_file,
                     model,
                     stoi,
@@ -73,10 +93,11 @@ def mscc_evaluation(input_file,
                     eos_token,
                     device):
 
-        questions = read_mscc_questions(input_file)
-        with open(input_file, mode='r') as f, open(output_file, mode='w') as w:
+        questions = read_mscc_questions(question_file)
+        q_id_and_sim = []
+        with open(question_file, mode='r') as f, open(output_file, mode='w') as w:
             for question, input_line in zip(questions, f):
-                tokens, target_word, target_pos = question
+                tokens, q_id, target_word, target_pos = question
                 tokens[target_pos] = target_word
                 tokens = [bos_token] + tokens + [eos_token]
                 indexed_sentence = [stoi[token] if token in stoi else stoi[unk_token] for token in tokens]
@@ -84,7 +105,13 @@ def mscc_evaluation(input_file,
                     torch.tensor(indexed_sentence, dtype=torch.long, device=device).unsqueeze(0)
                 indexed_target_word = input_tokens[0, target_pos+1]
                 similarity = model.run_inference(input_tokens, indexed_target_word, target_pos)
+                q_id_and_sim.append((q_id, similarity))
                 w.write(input_line.strip() + '\t' + str(similarity) + '\n')
+
+        with open(answer_file, mode='r') as f:
+            gold_q_id = [line.split(' ', 1)[0] for line in f]
+
+        print_mscc_score(gold_q_id, q_id_and_sim)
 
 
 if __name__ == '__main__':
