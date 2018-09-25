@@ -56,6 +56,7 @@ def main():
     gpu_id = args.gpu_id
     train = args.train
     use_cuda = torch.cuda.is_available() and gpu_id > -1
+    max_sent_length = 64
     if use_cuda:
         device = torch.device('cuda:{}'.format(gpu_id))
         torch.cuda.set_device(gpu_id)
@@ -73,9 +74,25 @@ def main():
         if not os.path.isfile(args.input_file):
             raise FileNotFoundError
 
+        print('Loading input file')
+        counter = 0
         with open(args.input_file) as f:
-            sentences = [line.strip().lower().split() for line in f]
+            sentences = []
+            for line in f:
+                sentence = line.strip().lower().split()
+                if 0 < len(sentence) < max_sent_length:
+                    counter += 1
 
+        sentences = np.empty(counter, dtype=object)
+        counter = 0
+        with open(args.input_file) as f:
+            for line in f:
+                sentence = line.strip().lower().split()
+                if 0 < len(sentence) < max_sent_length:
+                    sentences[counter] = np.array(sentence)
+                    counter += 1
+
+        print('Creating dataset')
         dataset = Dataset(sentences, batch_size, config.min_freq, device)
         counter = np.array([dataset.vocab.freqs[word] if word in dataset.vocab.freqs else 0
                             for word in dataset.vocab.itos])
